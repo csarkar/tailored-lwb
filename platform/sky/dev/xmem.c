@@ -26,7 +26,6 @@
  * OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
  * SUCH DAMAGE.
  *
- * @(#)$Id: xmem.c,v 1.10 2009/09/07 11:31:26 nifi Exp $
  */
 
 /**
@@ -39,12 +38,10 @@
  *         unwritten data will read as zeros (UNIX style).
  */
 
+#include "contiki.h"
 #include <stdio.h>
 #include <string.h>
-
 #include <legacymsp430.h>
-
-#include "contiki.h"
 
 #include "dev/spi.h"
 #include "dev/xmem.h"
@@ -76,8 +73,7 @@ write_enable(void)
   s = splhigh();
   SPI_FLASH_ENABLE();
   
-  FASTSPI_TX(SPI_FLASH_INS_WREN);
-  SPI_WAITFORTx_ENDED();
+  FASTSPI_TX(SPI_FLASH_INS_WREN); SPI_WAITFORTx_ENDED();//SPI_WRITE(SPI_FLASH_INS_WREN);
 
   SPI_FLASH_DISABLE();
   splx(s);

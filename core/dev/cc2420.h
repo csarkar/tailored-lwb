@@ -46,6 +46,7 @@
 int cc2420_init(void);
 void cc2420_set_channel(int channel);
 void cc2420_set_tx_power(int power);
+int cc2420_get_txpower(void);
 
 #define CC2420_TXPOWER_MAX  31
 #define CC2420_TXPOWER_MIN   0

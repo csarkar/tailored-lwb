@@ -125,6 +125,16 @@ cc2420_set_tx_power(int power) {
 	FASTSPI_SETREG(CC2420_TXCTRL, reg);
 }
 /*---------------------------------------------------------------------------*/
+int
+cc2420_get_txpower(void)
+{
+  uint16_t reg;
+  int power;
+  FASTSPI_GETREG(CC2420_TXCTRL, reg);
+  power = (int)(reg & 0x001f);
+  return power;
+}
+/*---------------------------------------------------------------------------*/
 void
 cc2420_set_channel(int c)
 {

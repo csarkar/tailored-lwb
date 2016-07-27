@@ -30,6 +30,8 @@
 #ifndef MSP430DEF_H
 #define MSP430DEF_H
 
+#include "contiki-conf.h"
+
 #ifdef __IAR_SYSTEMS_ICC__
 #include <intrinsics.h>
 #include <in430.h>
@@ -122,18 +124,18 @@ void *w_memset(void *out, int value, size_t n);
 
 /* Moved from the msp430.h file with other msp430 related defines */
 
-/*#ifdef F_CPU
+#ifdef F_CPU
 #define MSP430_CPU_SPEED F_CPU
 #else
 #define MSP430_CPU_SPEED 2457600UL
-#endif*/
+#endif
 
-//#define MSP430_REQUIRE_CPUON 0
-//#define MSP430_REQUIRE_LPM1 1
-//#define MSP430_REQUIRE_LPM2 2
-//#define MSP430_REQUIRE_LPM3 3
+#define MSP430_REQUIRE_CPUON 0
+#define MSP430_REQUIRE_LPM1 1
+#define MSP430_REQUIRE_LPM2 2
+#define MSP430_REQUIRE_LPM3 3
 
-//void msp430_add_lpm_req(int req);
-//void msp430_remove_lpm_req(int req);
+void msp430_add_lpm_req(int req);
+void msp430_remove_lpm_req(int req);
 
 #endif /* MSP430DEF_H */

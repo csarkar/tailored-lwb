@@ -74,7 +74,7 @@ typedef unsigned long clock_time_t;
 typedef unsigned long off_t;
 
 /* the low-level radio driver */
-//#define NETSTACK_CONF_RADIO   cc2420_driver
+#define NETSTACK_CONF_RADIO   cc2420_driver
 
 /* LED ports */
 #define LEDS_PxDIR P5DIR
@@ -84,30 +84,30 @@ typedef unsigned long off_t;
 #define LEDS_CONF_YELLOW 0x40
 
 /* DCO speed resynchronization for more robust UART, etc. */
-//#ifndef DCOSYNCH_CONF_ENABLED
-//#define DCOSYNCH_CONF_ENABLED 1
-//#endif /* DCOSYNCH_CONF_ENABLED */
-//#ifndef DCOSYNCH_CONF_PERIOD
-//#define DCOSYNCH_CONF_PERIOD 30
-//#endif /* DCOSYNCH_CONF_PERIOD */
+#ifndef DCOSYNCH_CONF_ENABLED
+#define DCOSYNCH_CONF_ENABLED 1
+#endif /* DCOSYNCH_CONF_ENABLED */
+#ifndef DCOSYNCH_CONF_PERIOD
+#define DCOSYNCH_CONF_PERIOD 30
+#endif /* DCOSYNCH_CONF_PERIOD */
 
 #define ROM_ERASE_UNIT_SIZE  512
 #define XMEM_ERASE_UNIT_SIZE (64*1024L)
 
 
-//#define CFS_CONF_OFFSET_TYPE    long
+#define CFS_CONF_OFFSET_TYPE    long
 
 
 /* Use the first 64k of external flash for node configuration */
 #define NODE_ID_XMEM_OFFSET     (0 * XMEM_ERASE_UNIT_SIZE)
 
 /* Use the second 64k of external flash for codeprop. */
-//#define EEPROMFS_ADDR_CODEPROP  (1 * XMEM_ERASE_UNIT_SIZE)
+#define EEPROMFS_ADDR_CODEPROP  (1 * XMEM_ERASE_UNIT_SIZE)
 
-//#define CFS_XMEM_CONF_OFFSET    (2 * XMEM_ERASE_UNIT_SIZE)
-//#define CFS_XMEM_CONF_SIZE      (1 * XMEM_ERASE_UNIT_SIZE)
+#define CFS_XMEM_CONF_OFFSET    (2 * XMEM_ERASE_UNIT_SIZE)
+#define CFS_XMEM_CONF_SIZE      (1 * XMEM_ERASE_UNIT_SIZE)
 
-//#define CFS_RAM_CONF_SIZE 4096
+#define CFS_RAM_CONF_SIZE 4096
 
 /*
  * SPI bus configuration for the TMote Sky.
@@ -148,7 +148,7 @@ typedef unsigned long off_t;
  * SPI bus - CC2420 pin configuration.
  */
 
-//#define CC2420_CONF_SYMBOL_LOOP_COUNT 800
+#define CC2420_CONF_SYMBOL_LOOP_COUNT 800
 
 /* P1.0 - Input: FIFOP from CC2420 */
 #define CC2420_FIFOP_PORT(type)   P1##type
@@ -172,7 +172,7 @@ typedef unsigned long off_t;
 #define CC2420_RESET_PORT(type)    P4##type
 #define CC2420_RESET_PIN           6
 
-//#define CC2420_IRQ_VECTOR PORT1_VECTOR
+#define CC2420_IRQ_VECTOR PORT1_VECTOR
 
 /* Pin status. */
 #define CC2420_FIFOP_IS_1 (!!(CC2420_FIFOP_PORT(IN) & BV(CC2420_FIFOP_PIN)))

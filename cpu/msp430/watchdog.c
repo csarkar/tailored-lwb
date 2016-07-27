@@ -28,14 +28,19 @@
  *
  * This file is part of the Contiki operating system.
  *
- * @(#)$Id: watchdog.c,v 1.8 2010/04/04 12:30:10 adamdunkels Exp $
  */
+ 
 #include <legacymsp430.h>
 #include <stdint.h>
 #include "dev/watchdog.h"
 
-static int stopped = 0;
+static int counter = 0;
+
+#define PRINT_STACK_ON_REBOOT 0
+
 /*---------------------------------------------------------------------------*/
+#if PRINT_STACK_ON_REBOOT
+#ifdef CONTIKI_TARGET_SKY
 static void
 printchar(char c)
 {
@@ -62,20 +67,20 @@ printstring(char *s)
     printchar(*s++);
   }
 }
+#endif /* CONTIKI_TARGET_SKY */
+#endif /* PRINT_STACK_ON_REBOOT */
 /*---------------------------------------------------------------------------*/
 interrupt(WDT_VECTOR)
 watchdog_interrupt(void)
 {
+#ifdef CONTIKI_TARGET_SKY
+#if PRINT_STACK_ON_REBOOT
   uint8_t dummy;
   static uint8_t *ptr;
   static int i;
 
   ptr = &dummy;
-
   printstring("Watchdog reset");
-  /*  printstring("Watchdog reset at PC $");
-  hexprint(ptr[3]);
-  hexprint(ptr[2]);*/
   printstring("\nStack at $");
   hexprint(((int)ptr) >> 8);
   hexprint(((int)ptr) & 0xff);
@@ -89,6 +94,8 @@ watchdog_interrupt(void)
     }
   }
   printchar('\n');
+#endif /* PRINT_STACK_ON_REBOOT */
+#endif /* CONTIKI_TARGET_SKY */
   watchdog_reboot();
 }
 /*---------------------------------------------------------------------------*/
@@ -97,7 +104,7 @@ watchdog_init(void)
 {
   /* The MSP430 watchdog is enabled at boot-up, so we stop it during
      initialization. */
-  stopped = 0;
+  counter = 0;
   watchdog_stop();
 
   IFG1 &= ~WDTIFG;
@@ -109,8 +116,8 @@ watchdog_start(void)
 {
   /* We setup the watchdog to reset the device after one second,
      unless watchdog_periodic() is called. */
-  stopped--;
-  if(!stopped) {
+  counter--;
+  if(!counter) {
     WDTCTL = WDTPW | WDTCNTCL | WDT_ARST_1000 | WDTTMSEL;
   }
 }
@@ -120,7 +127,7 @@ watchdog_periodic(void)
 {
   /* This function is called periodically to restart the watchdog
      timer. */
-  if(!stopped) {
+  if(!counter) {
     WDTCTL = (WDTCTL & 0xff) | WDTPW | WDTCNTCL | WDTTMSEL;;
   }
 }
@@ -129,7 +136,7 @@ void
 watchdog_stop(void)
 {
   WDTCTL = WDTPW | WDTHOLD;
-  stopped++;
+  counter++;
 }
 /*---------------------------------------------------------------------------*/
 void
