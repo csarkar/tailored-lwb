@@ -156,11 +156,6 @@ static inline int8_t reset_parameters() {
 		} else {
 			SLEEP_SLOTS	= 1;
 		}
-#if CLUSTERING_ENABLED
-		if(run_time >= RECLUSTERING_PERIOD) {
-			SLEEP_SLOTS = 1;
-		}
-#endif
 		return NO_ERROR;
 	}
 }
@@ -172,13 +167,13 @@ void filled_superframe() {
 	
 	sync_data.data_slots = max_data_slots;
 	
-	if(IPI <= MIN_SYNC_PERIOD) {
-		sync_data.sleep_slots = MIN_SYNC_PERIOD;
+	if(IPI <= MINIMUM_LWB_ROUND) {
+		sync_data.sleep_slots = MINIMUM_LWB_ROUND;
 	} else {
-		if(IPI%MIN_SYNC_PERIOD == 0) {
-			sync_data.sleep_slots = MIN_SYNC_PERIOD;
+		if(IPI%MINIMUM_LWB_ROUND == 0) {
+			sync_data.sleep_slots = MINIMUM_LWB_ROUND;
 		} else {
-			sync_data.sleep_slots = MIN_SYNC_PERIOD + IPI%MIN_SYNC_PERIOD;
+			sync_data.sleep_slots = MINIMUM_LWB_ROUND + IPI%MINIMUM_LWB_ROUND;
 		}
 	}
 }
@@ -198,13 +193,13 @@ void prepare_next_superframe() {
 		
 	sync_data.run_time = run_time;	
 
-	if(run_time < COOL_DOWN_PERIOD) {
+	if(run_time < COOLOFF_PERIOD) {
 		/* before anything starts, just keep sending sync packet every seconds, 
 		 * no other slots in the superframe */
 		sync_data.rr_slots = 0;
 		bare_superframe(1);
-	} else if(run_time < STABILIZATION_PHASE) {
-		if(run_time == COOL_DOWN_PERIOD) {
+	} else if(run_time < STABILIZATION_PERIOD) {
+		if(run_time == COOLOFF_PERIOD) {
 			sync_data.rr_slots = MAX_RR_SLOTS_P_SECOND;
 		}
 		/* send sync packets every seconds */
@@ -214,10 +209,10 @@ void prepare_next_superframe() {
 		sync_data.rr_slots = MIN_RR_SLOTS;
 		/* fill the superframe with suitable slots */
 		filled_superframe();
-	} else if(run_time%MIN_SYNC_PERIOD == 0){
-		/* send sync packet every MIN_SYNC_PERIOD, if IPI is equal to this, then this does not arise */
+	} else if(run_time%MINIMUM_LWB_ROUND == 0){
+		/* send sync packet every MINIMUM_LWB_ROUND, if IPI is equal to this, then this does not arise */
 		sync_data.rr_slots = 0;
-		bare_superframe(MIN_SYNC_PERIOD);
+		bare_superframe(MINIMUM_LWB_ROUND);
 	} else {
 		/* in all other cases, send sync packet every second, without any contention slot */
 		sync_data.rr_slots = 0;
@@ -286,9 +281,8 @@ void next_radio_activity_schedule(struct rtimer *t, void *ptr) {
 			process_poll(&tailored_lwb_print_process);
 		}
 
-		/* if any node is still trying to become cluster-member, 
-		 * give up potential cluster membership such that a global data slot can be acquired */
-		if(run_time == STABILIZATION_PHASE) {
+		/* load own data slots, and slot it is going to participate */
+		if(run_time == STABILIZATION_PERIOD) {
 			flow_info.slot = get_own_slot();
 			load_forwarder_selection_vector();
 		}
@@ -411,7 +405,7 @@ void proecess_rr_data() {
 		handle_slot_reply(&req_reply, &errno);
 #endif
 		int8_t b = add_participation(req_reply.slot, req_reply.hop);
-		if(run_time > STABILIZATION_PHASE && b==1) {
+		if(run_time > STABILIZATION_PERIOD && b==1) {
 			/* after the stabilization phase, directly update the participation 
 			 * vector and slot number */
 			update_forwarder_selection_vector(req_reply.slot);

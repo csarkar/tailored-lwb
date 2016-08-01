@@ -1,6 +1,8 @@
-
 #ifndef SLOT_DEF_H_
 #define SLOT_DEF_H_
+
+
+/****** Application defined parameters that controls LWB process *****/
 
 /**
  * Inter packet interval, default is 10 seconds
@@ -9,19 +11,43 @@
 #define IPI							10
 #endif
 
-
-
-#define COOL_DOWN_PERIOD			1*IPI
+/**
+ * minimum sync period (LWB round) in operational phase, 
+ * default is 5 seconds
+ */
+#define MINIMUM_LWB_ROUND 			5
 
 /**
- * Initial network stabilization period, default is 30 seconds
+ * Initial network cooloff period, default is 10 seconds
  */
-#define STABILIZATION_PHASE			COOL_DOWN_PERIOD+1*IPI
+#define COOLOFF_PERIOD				1*IPI
 
+/**
+ * Initial network stabilization period, default is 20 seconds
+ */
+#define STABILIZATION_PERIOD		COOLOFF_PERIOD+1*IPI
 
-#define MAX_PAYLOAD_LEN		40
+/**
+ * LWB reset period, default is 24 hours
+ */
+#define LWB_RESET_PERIOD			STABILIZATION_PERIOD + 24*360*IPI
 
-/**************** SYSTEM parameters ***********************************/
+/**
+ * Maximum payload length of a LWB data packet
+ */
+#define MAX_PAYLOAD_LEN				40
+
+/**
+ * NodeId of the initiator.
+ * Default value: 1
+ */
+#define SINK_NODE_ID       			1
+
+/**
+ * MAX number of nodes in the network.
+ * Default value: 150
+ */
+#define MAX_NODE_NUMBER		       	150
 
 /**
  * This indicates whether forwarder selection will be used or a LWB-like 
@@ -31,35 +57,19 @@
 #define FORWARDER_SELECTION			0
 #endif
 
-/**
- * minimum sync period, default is 5 seconds
- */
-#define MIN_SYNC_PERIOD 			5
 
+/**************** SYSTEM parameters, change with care *****************/
+
+/**
+ * required by FS-LWB, a different value can change FS-LWB's behavior 
+ * and performance
+ */
 #define RSSI_THESHOLD				-75
 
+/**
+ * associated with FS-LWB
+ */
 #define RSSI_BUFFER					-5
-
-#define MAX_MEMBER_COUNT			4
-
-/*********************************************************************************************************/
-
-/**
- * \defgroup glossy-test-settings Application settings
- * @{
- */
-
-/**
- * \brief MAX number of nodes in the network.
- *        Default value: 150
- */
-#define MAX_NODE_NUMBER		       	150
-
-/**
- * \brief NodeId of the initiator.
- *        Default value: 1
- */
-#define SINK_NODE_ID       	1
 
 /**
  * \brief MAX number of req/reply slots per second.
@@ -85,7 +95,6 @@
  */
 #define MAX_MINI_SLOTS_P_SECOND		52
 
-/*********************************************************************************************************/
 /**
  * \brief number of times data packets will be sent 
  */
@@ -172,7 +181,9 @@
  */
 #define APPLICATION_HEADER      	0
 
-/*---------------------------------------------------------------------------*/
+
+/********** Do not chnage these until absolutely necessary ***********/
+
 /** @} */
 
 /**
@@ -211,4 +222,4 @@
 
 /** @} */
 
-#endif /* CLUSTER_LWB_H_ */
+#endif /* SLOT_DEF_H_ */

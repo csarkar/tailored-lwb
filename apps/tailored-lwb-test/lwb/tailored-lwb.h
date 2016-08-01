@@ -1,4 +1,3 @@
-
 #ifndef TAILORED_LWB_H_
 #define TAILORED_LWB_H_
 

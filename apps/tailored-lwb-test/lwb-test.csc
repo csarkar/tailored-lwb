@@ -494,7 +494,7 @@
   <plugin>
     org.contikios.cooja.plugins.SimControl
     <width>280</width>
-    <z>1</z>
+    <z>2</z>
     <height>160</height>
     <location_x>400</location_x>
     <location_y>0</location_y>
@@ -510,7 +510,7 @@
       <viewport>0.3816525136205096 0.0 0.0 0.3816525136205096 15.432215417757321 -18.667959338043723</viewport>
     </plugin_config>
     <width>400</width>
-    <z>0</z>
+    <z>3</z>
     <height>400</height>
     <location_x>1</location_x>
     <location_y>1</location_y>
@@ -518,12 +518,12 @@
   <plugin>
     org.contikios.cooja.plugins.LogListener
     <plugin_config>
-      <filter>ID:1</filter>
+      <filter />
       <formatted_time />
       <coloring />
     </plugin_config>
     <width>815</width>
-    <z>2</z>
+    <z>0</z>
     <height>240</height>
     <location_x>400</location_x>
     <location_y>160</location_y>
@@ -563,8 +563,8 @@
       <zoomfactor>200.0</zoomfactor>
     </plugin_config>
     <width>1215</width>
-    <z>3</z>
-    <height>580</height>
+    <z>1</z>
+    <height>655</height>
     <location_x>7</location_x>
     <location_y>397</location_y>
   </plugin>
