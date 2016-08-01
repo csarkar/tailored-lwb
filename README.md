@@ -8,7 +8,7 @@ By default, the nodes will be using LWB as communication mechanism with 10s inte
 Please cite the following article -
 
 LWB and FS-LWB implementation for Sky platform using Contiki
-https://arxiv.org/abs/1607.06622
+https://arxiv.org/pdf/1607.06622.pdf
 
 or just copy the bibtex content -
 
@@ -18,7 +18,7 @@ or just copy the bibtex content -
 
   author={Sarkar, Chayan},
 
-  howpublished = {arXiv preprint - \url{https://arxiv.org/abs/1607.06622}},
+  howpublished = {arXiv preprint - \url{https://arxiv.org/pdf/1607.06622.pdf}},
 
   year={2016}
 
