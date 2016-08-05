@@ -1,7 +1,7 @@
 
 // set COOJA to 1 for simulating Glossy in Cooja
 #define COOJA 1
-#define TINYOS_SERIAL_FRAMES 0
+#define WITH_TINYOS_AUTO_IDS 1
 
 #define rtimer_arch_now_dco() (TBR)
 
