@@ -39,6 +39,8 @@ static int     offset_err;
 /*---------------------------------------------------------------------------*/
 static uint16_t run_time, last_time;
 
+static uint8_t  SYNC_SLOT = 1;
+
 static uint8_t  RR_SLOTS, rr_slots;
 
 static uint16_t DATA_SLOTS, data_slots;
@@ -50,9 +52,7 @@ static flow_info_struct flow_info;
 /*---------------------------------------------------------------------------*/
 static int8_t FLOODING_ROLE;
 static uint16_t rx_count;
-static int8_t hop_count;
 static enum err_type errno;
-static uint8_t active_slots;
 /*---------------------------------------------------------------------------*/
 
 char tailored_lwb_scheduler(struct rtimer *t, void *ptr);
@@ -136,10 +136,9 @@ static inline int8_t reset_parameters() {
 	data_slots  = 0;
 	rr_slots = 0;
 	rx_count = 0;
-	active_slots = 0;
 		
 	if(get_rx_cnt() == 0) {
-		RR_SLOTS 		  = 0;
+		RR_SLOTS   = 0;
 		DATA_SLOTS = 0;
 		skew_estimated--;
 		return NO_SYNC_PACKET;
@@ -277,15 +276,17 @@ void next_radio_activity_schedule(struct rtimer *t, void *ptr) {
 				(rtimer_callback_t)tailored_lwb_scheduler, ptr);
 				
 	if(SLEEP_SLOTS==0) {
-		if(DATA_SLOTS) {
-			process_poll(&tailored_lwb_print_process);
-		}
-
+		/* print stats after the LWB round */
+		process_poll(&tailored_lwb_print_process);
+		
 		/* load own data slots, and slot it is going to participate */
 		if(run_time == STABILIZATION_PERIOD) {
 			flow_info.slot = get_own_slot();
 			load_forwarder_selection_vector();
 		}
+		
+		/* indicate there will be a sync slot */
+		SYNC_SLOT = 1;
 		
 		/* sink node decides structure of the next superframe */
 		if (IS_SINK()) {
@@ -357,6 +358,7 @@ void process_data() {
 		if(IS_SINK()) {
 			errno = DATA_SLOT_END;
 		}
+		DATA_SLOTS = 0;
 	}
 }
 
@@ -412,8 +414,117 @@ void proecess_rr_data() {
 			flow_info.slot = req_reply.slot;
 		}
 	}
+	
+	/* at the end of rr slots */
+	if(rr_slots == RR_SLOTS) {
+		RR_SLOTS = 0;
+	}
 }
 
+/**
+ * 
+ */
+rtimer_clock_t prepare_sync_packet(struct rtimer *t) {
+	
+	leds_on(LEDS_GREEN);
+		
+	rtimer_clock_t t_stop;
+			
+	if (IS_SINK()) {
+		t_stop = RTIMER_TIME(t) + GLOSSY_DURATION;
+		FLOODING_ROLE = GLOSSY_INITIATOR;
+		REF_TIME = RTIMER_TIME(t);
+	} else {
+		if (GLOSSY_IS_BOOTSTRAPPING()) {
+			t_stop = RTIMER_TIME(t) + GLOSSY_INIT_DURATION;
+		} else {
+			t_stop = RTIMER_TIME(t) + GLOSSY_DURATION;
+		}
+		FLOODING_ROLE = GLOSSY_RECEIVER;	
+	}
+	
+	return t_stop;
+}
+
+/**
+ * 
+ */
+void process_sync_packet(struct rtimer *t, void *ptr) {
+	
+	leds_off(LEDS_GREEN);
+	
+	if(IS_SINK()) {
+		if (!GLOSSY_IS_BOOTSTRAPPING()) {
+			// Glossy has already successfully bootstrapped.
+			if (!GLOSSY_IS_SYNCED()) {
+				// The reference time was not updated: increment reference time by GLOSSY_PERIOD.
+				set_t_ref_l(GLOSSY_REFERENCE_TIME + GLOSSY_PERIOD);
+				set_t_ref_l_updated(1);
+			}
+		}
+		
+		// Estimate the clock skew over the last period.
+		estimate_period_skew();
+		
+		if (GLOSSY_IS_BOOTSTRAPPING()) {
+			rtimer_set(t, REF_TIME + GLOSSY_PERIOD, 1, (rtimer_callback_t)tailored_lwb_scheduler, ptr);
+			SYNC_SLOT = 1;
+		} else {
+			NEXT_SLOT  = GLOSSY_SYNC_GUARD;
+			reset_parameters();				
+			rtimer_set(t, REF_TIME + NEXT_SLOT, 1, (rtimer_callback_t)tailored_lwb_scheduler, ptr);
+			SYNC_SLOT = 0;
+		}
+	}
+	else {
+		if (GLOSSY_IS_BOOTSTRAPPING()) {
+			// Glossy is still bootstrapping.
+			if (!GLOSSY_IS_SYNCED()) {
+				// The reference time was not updated: reset skew_estimated to zero.
+				skew_estimated = 0;
+			}
+		} else {
+			// Glossy has already successfully bootstrapped.
+			if (!GLOSSY_IS_SYNCED()) {
+				// The reference time was not updated:
+				// increment reference time by GLOSSY_PERIOD + period_skew.
+				set_t_ref_l(GLOSSY_REFERENCE_TIME + GLOSSY_PERIOD + period_skew);
+				set_t_ref_l_updated(1);
+				// Increment sync_missed.
+				sync_missed++;
+			} else {
+				// The reference time was not updated: reset sync_missed to zero.
+				sync_missed = 0;
+			}
+		}
+		// Estimate the clock skew over the last period.
+		estimate_period_skew();
+		if (GLOSSY_IS_BOOTSTRAPPING()) {
+			// Glossy is still bootstrapping.
+			if (skew_estimated == 0) {
+				rtimer_set(t, RTIMER_TIME(t) + GLOSSY_INIT_PERIOD, 1,
+						(rtimer_callback_t)tailored_lwb_scheduler, ptr);
+				SYNC_SLOT = 1;
+			} else {
+				REF_TIME = GLOSSY_REFERENCE_TIME + GLOSSY_PERIOD;
+				rtimer_set(t, REF_TIME - GLOSSY_INIT_GUARD_TIME, 1,
+							(rtimer_callback_t)tailored_lwb_scheduler, ptr);
+				SYNC_SLOT = 0;
+			}
+		} else {
+			offset_err = GLOSSY_REFERENCE_TIME - (rtimer_clock_t)REF_TIME;
+			REF_TIME   = GLOSSY_REFERENCE_TIME;
+			NEXT_SLOT  = GLOSSY_SYNC_GUARD;
+			errno = reset_parameters();
+			rtimer_set(t, REF_TIME + NEXT_SLOT, 1, (rtimer_callback_t)tailored_lwb_scheduler, ptr);
+			SYNC_SLOT = 0;
+			
+			if(errno == NO_SYNC_PACKET) {
+				process_poll(&tailored_lwb_print_process);
+			}
+		}
+	}
+}
 
 /** @} */
 
@@ -431,7 +542,18 @@ char tailored_lwb_scheduler(struct rtimer *t, void *ptr) {
 	uint8_t src, dst;
 	
 	while (1) {
-		if(data_slots < DATA_SLOTS) {
+		if(SYNC_SLOT) {
+			rtimer_clock_t t_stop = prepare_sync_packet(t);
+			
+			/* every node participate (using flooding) in every sync slot */
+			tailored_glossy_start((uint8_t *)&sync_data, SYNC_LEN, FLOODING_ROLE, FLOODING, GLOSSY_SYNC, N_TX,
+						APPLICATION_HEADER, t_stop, (rtimer_callback_t)tailored_lwb_scheduler, t, ptr);
+			PT_YIELD(&pt);
+			tailored_glossy_stop(&src, &dst);
+			
+			process_sync_packet(t, ptr);				
+		}
+		else if(DATA_SLOTS) {
 			/* account for how many data slots have elapsed */
 			data_slots++;
 			
@@ -445,7 +567,6 @@ char tailored_lwb_scheduler(struct rtimer *t, void *ptr) {
 						(rtimer_callback_t)tailored_lwb_scheduler, t, ptr);
 				PT_YIELD(&pt);
 				tailored_glossy_stop(&src, &dst);
-				active_slots += 2;
 			}					
 			
 			/* schedule the next radio activity */
@@ -454,7 +575,7 @@ char tailored_lwb_scheduler(struct rtimer *t, void *ptr) {
 			/* process the data received in the global slot */
 			process_data();
 		}
-		else if(rr_slots < RR_SLOTS) {
+		else if(RR_SLOTS) {
 			/* account for how many contention slots have elapsed */
 			rr_slots++;
 			
@@ -476,117 +597,14 @@ char tailored_lwb_scheduler(struct rtimer *t, void *ptr) {
 			/* process the data received in the rr_slot */
 			proecess_rr_data();
 		}
-		else if(SLEEP_SLOTS > 0) {
+		else {
 			/* in the sleep slot nothing to be done */
 			/* schedule the next radio activity */
 			next_radio_activity_schedule(t, ptr);
 		} 
-		else {
-			if (IS_SINK()) {
-				// Glossy phase.
-				leds_on(LEDS_GREEN);
-				rtimer_clock_t t_stop = RTIMER_TIME(t) + GLOSSY_DURATION;
-				// Start Glossy.
-				tailored_glossy_start((uint8_t *)&sync_data, SYNC_LEN, GLOSSY_INITIATOR, FLOODING, GLOSSY_SYNC, N_TX,
-						APPLICATION_HEADER, t_stop, (rtimer_callback_t)tailored_lwb_scheduler, t, ptr);
-				// Store time at which Glossy has started.
-				REF_TIME = RTIMER_TIME(t);
-				
-				// Yield the protothread. It will be resumed when Glossy terminates.
-				PT_YIELD(&pt);
-
-				// Off phase.
-				leds_off(LEDS_GREEN);
-				// Stop Glossy.
-				tailored_glossy_stop(&src, &dst);
-				if (!GLOSSY_IS_BOOTSTRAPPING()) {
-					// Glossy has already successfully bootstrapped.
-					if (!GLOSSY_IS_SYNCED()) {
-						// The reference time was not updated: increment reference time by GLOSSY_PERIOD.
-						set_t_ref_l(GLOSSY_REFERENCE_TIME + GLOSSY_PERIOD);
-						set_t_ref_l_updated(1);
-					}
-				}
-				
-				// Estimate the clock skew over the last period.
-				estimate_period_skew();
-				
-				if (GLOSSY_IS_BOOTSTRAPPING()) {
-					rtimer_set(t, REF_TIME + GLOSSY_PERIOD, 1, (rtimer_callback_t)tailored_lwb_scheduler, ptr);
-				} else {
-					NEXT_SLOT  = GLOSSY_SYNC_GUARD;
-					reset_parameters();				
-					rtimer_set(t, REF_TIME + NEXT_SLOT, 1, (rtimer_callback_t)tailored_lwb_scheduler, ptr);
-				}
-			} else{
-				leds_on(LEDS_GREEN);
-				rtimer_clock_t t_stop;
-				if (GLOSSY_IS_BOOTSTRAPPING()) {
-					// Glossy is still bootstrapping:
-					// Schedule end of Glossy phase based on GLOSSY_INIT_DURATION.
-					t_stop = RTIMER_TIME(t) + GLOSSY_INIT_DURATION;
-				} else {
-					// Glossy has already successfully bootstrapped:
-					// Schedule end of Glossy phase based on GLOSSY_DURATION.
-					t_stop = RTIMER_TIME(t) + GLOSSY_DURATION;
-				}
-				// Start Glossy.
-				tailored_glossy_start((uint8_t *)&sync_data, SYNC_LEN, GLOSSY_RECEIVER, FLOODING, GLOSSY_SYNC, N_TX,
-						APPLICATION_HEADER, t_stop, (rtimer_callback_t)tailored_lwb_scheduler, t, ptr);
-				// Yield the protothread. It will be resumed when Glossy terminates.
-				PT_YIELD(&pt);
-				
-				// Off phase.
-				leds_off(LEDS_GREEN);
-				// Stop Glossy.
-				tailored_glossy_stop(&src, &dst);
-				if (GLOSSY_IS_BOOTSTRAPPING()) {
-					// Glossy is still bootstrapping.
-					if (!GLOSSY_IS_SYNCED()) {
-						// The reference time was not updated: reset skew_estimated to zero.
-						skew_estimated = 0;
-					}
-				} else {
-					// Glossy has already successfully bootstrapped.
-					if (!GLOSSY_IS_SYNCED()) {
-						// The reference time was not updated:
-						// increment reference time by GLOSSY_PERIOD + period_skew.
-						set_t_ref_l(GLOSSY_REFERENCE_TIME + GLOSSY_PERIOD + period_skew);
-						set_t_ref_l_updated(1);
-						// Increment sync_missed.
-						sync_missed++;
-					} else {
-						// The reference time was not updated: reset sync_missed to zero.
-						sync_missed = 0;
-					}
-				}
-				// Estimate the clock skew over the last period.
-				estimate_period_skew();
-				if (GLOSSY_IS_BOOTSTRAPPING()) {
-					// Glossy is still bootstrapping.
-					if (skew_estimated == 0) {
-						rtimer_set(t, RTIMER_TIME(t) + GLOSSY_INIT_PERIOD, 1,
-								(rtimer_callback_t)tailored_lwb_scheduler, ptr);
-					} else {
-						REF_TIME = GLOSSY_REFERENCE_TIME + GLOSSY_PERIOD;
-						rtimer_set(t, REF_TIME - GLOSSY_INIT_GUARD_TIME, 1,
-									(rtimer_callback_t)tailored_lwb_scheduler, ptr);
-					}
-				} else {
-					offset_err = GLOSSY_REFERENCE_TIME - (rtimer_clock_t)REF_TIME;
-					REF_TIME   = GLOSSY_REFERENCE_TIME;
-					NEXT_SLOT  = GLOSSY_SYNC_GUARD;
-					errno = reset_parameters();
-					rtimer_set(t, REF_TIME + NEXT_SLOT, 1, (rtimer_callback_t)tailored_lwb_scheduler, ptr);
-					if(errno == NO_SYNC_PACKET) {
-						process_poll(&tailored_lwb_print_process);
-					} else {
-						hop_count = get_my_hop();
-					}
-				}
-			}
-		}
-		// Yield the protothread.
+		
+		
+		/* Yield the protothread. */
 		PT_YIELD(&pt);
 	}
 	
