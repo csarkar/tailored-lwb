@@ -325,16 +325,17 @@ void prepare_data() {
 	
 	sensed_data.dst = 0;
 	
-	if(flow_info.slot == data_slots) {
-		sensed_data.data_len = 0;
-		sensed_data.src 	   = node_id;
-		sensed_data.dst 	   = flow_info.dst;
-		sensed_data.data_len   = 1;
-		errno = DATA_TX_SUCC;
-		FLOODING_ROLE = GLOSSY_INITIATOR;
-	} 
-	else if(decide_participation(data_slots)){
-		FLOODING_ROLE = GLOSSY_RECEIVER;
+	if(decide_participation(data_slots)){
+		if(flow_info.slot == data_slots) {
+			sensed_data.data_len = 0;
+			sensed_data.src 	  = node_id;
+			sensed_data.dst 	  = flow_info.dst;
+			sensed_data.data_len  = 1;
+			errno = DATA_TX_SUCC;
+			FLOODING_ROLE = GLOSSY_INITIATOR;
+		} else { 
+			FLOODING_ROLE = GLOSSY_RECEIVER;
+		}
 	}
 	else {
 		FLOODING_ROLE = GLOSSY_NO_FLOODING;
@@ -469,6 +470,7 @@ void process_sync_packet(struct rtimer *t, void *ptr) {
 			reset_parameters();				
 			rtimer_set(t, REF_TIME + NEXT_SLOT, 1, (rtimer_callback_t)tailored_lwb_scheduler, ptr);
 			SYNC_SLOT = 0;
+			update_participation_vector(sync_data.slot_vector, DATA_SLOTS);
 		}
 	}
 	else {
@@ -519,7 +521,7 @@ void process_sync_packet(struct rtimer *t, void *ptr) {
 				process_poll(&tailored_lwb_print_process);
 			}
 			
-			update_participation_vector(sync_data.slot_vector, sync_data.data_slots);
+			update_participation_vector(sync_data.slot_vector, DATA_SLOTS);
 		}
 	}
 }
