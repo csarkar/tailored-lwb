@@ -35,6 +35,20 @@ void load_forwarder_selection_vector(void) {
 /**
  * 
  */
+void update_participation_vector(uint8_t vector[], uint16_t data_slots) {
+	uint16_t i;
+	
+#if FORWARDER_SELECTION
+#else
+	for(i=0; i<=data_slots/8; i++) {
+		participation_vector[i] = vector[i];
+	}
+#endif
+}
+
+/**
+ * 
+ */
 uint8_t decide_participation(uint16_t slot) {
 	uint8_t i = (slot-1)/8;
 	

@@ -164,6 +164,11 @@ static inline int8_t reset_parameters() {
  */
 void filled_superframe() {
 	
+	int16_t i;
+	for(i=0; i<max_data_slots; i++) {
+		sync_data.slot_vector[i/8] |= 1 << (i%8);
+	}
+	
 	sync_data.data_slots = max_data_slots;
 	
 	if(IPI <= MINIMUM_LWB_ROUND) {
@@ -198,9 +203,7 @@ void prepare_next_superframe() {
 		sync_data.rr_slots = 0;
 		bare_superframe(1);
 	} else if(run_time < STABILIZATION_PERIOD) {
-		if(run_time == COOLOFF_PERIOD) {
-			sync_data.rr_slots = MAX_RR_SLOTS_P_SECOND;
-		}
+		sync_data.rr_slots = MAX_RR_SLOTS_P_SECOND;
 		/* send sync packets every seconds */
 		bare_superframe(1);				
 	} else if(run_time%IPI == 0) {
@@ -366,8 +369,7 @@ void process_data() {
  * 
  */
 void proecess_rr_data() {
-	static int8_t rr_timeout;			
-		
+	
 	/* switch the role of INITIATOR and RECEIVER */
 	if(req_reply.dst == node_id) {
 		FLOODING_ROLE = GLOSSY_INITIATOR;
@@ -380,16 +382,9 @@ void proecess_rr_data() {
 	if(rr_slots%MIN_RR_SLOTS == 1) {
 		if(!get_rx_cnt()) {
 			/* if no request is received, skip the reply slot */
-			rr_slots += MIN_RR_SLOTS-1;
-			if(rr_timeout > 0) {
-				rr_timeout--;
-			}
-			if(rr_timeout == 0) {
-				sync_data.rr_slots = MIN_RR_SLOTS*4;
-				rr_slots = RR_SLOTS;
-			}
+			FLOODING_ROLE = GLOSSY_NO_FLOODING;
+			rr_slots = RR_SLOTS;
 		} else {
-			rr_timeout = 2;
 			if(IS_SINK()) {
 				max_data_slots = handle_slot_request(&req_reply);
 			}
@@ -515,13 +510,16 @@ void process_sync_packet(struct rtimer *t, void *ptr) {
 			offset_err = GLOSSY_REFERENCE_TIME - (rtimer_clock_t)REF_TIME;
 			REF_TIME   = GLOSSY_REFERENCE_TIME;
 			NEXT_SLOT  = GLOSSY_SYNC_GUARD;
-			errno = reset_parameters();
 			rtimer_set(t, REF_TIME + NEXT_SLOT, 1, (rtimer_callback_t)tailored_lwb_scheduler, ptr);
+			
+			errno = reset_parameters();
 			SYNC_SLOT = 0;
 			
 			if(errno == NO_SYNC_PACKET) {
 				process_poll(&tailored_lwb_print_process);
 			}
+			
+			update_participation_vector(sync_data.slot_vector, sync_data.data_slots);
 		}
 	}
 }
@@ -543,6 +541,7 @@ char tailored_lwb_scheduler(struct rtimer *t, void *ptr) {
 	
 	while (1) {
 		if(SYNC_SLOT) {
+			/* prepare the sync packet to decide the superframe structure */
 			rtimer_clock_t t_stop = prepare_sync_packet(t);
 			
 			/* every node participate (using flooding) in every sync slot */
@@ -551,6 +550,7 @@ char tailored_lwb_scheduler(struct rtimer *t, void *ptr) {
 			PT_YIELD(&pt);
 			tailored_glossy_stop(&src, &dst);
 			
+			/* process the sync packet and schedule the next radio activity */
 			process_sync_packet(t, ptr);				
 		}
 		else if(DATA_SLOTS) {
@@ -584,12 +584,15 @@ char tailored_lwb_scheduler(struct rtimer *t, void *ptr) {
 				FLOODING_ROLE = prepare_slot_request(&req_reply);
 			}
 			
-			/* every node participate (using flooding) in every rr slots (with specified role) */
-			tailored_glossy_start((uint8_t *)&req_reply, REQ_LEN, FLOODING_ROLE, FLOODING, GLOSSY_SYNC, D_TX,
-					APPLICATION_HEADER, (rtimer_clock_t)(RTIMER_TIME(t) + RR_SLOT_DURATION), 
-					(rtimer_callback_t)tailored_lwb_scheduler, t, ptr);
-			PT_YIELD(&pt);
-			tailored_glossy_stop(&src, &dst);
+			/* even though evry node should participate in every rr slots (with specified role),
+			 * if no request is received in the first rr slot, skip the next slot */
+			if(FLOODING_ROLE != GLOSSY_NO_FLOODING) {
+				tailored_glossy_start((uint8_t *)&req_reply, REQ_LEN, FLOODING_ROLE, FLOODING, GLOSSY_SYNC, D_TX,
+						APPLICATION_HEADER, (rtimer_clock_t)(RTIMER_TIME(t) + RR_SLOT_DURATION), 
+						(rtimer_callback_t)tailored_lwb_scheduler, t, ptr);
+				PT_YIELD(&pt);
+				tailored_glossy_stop(&src, &dst);
+			}
 			
 			/* schedule the next radio activity */
 			next_radio_activity_schedule(t, ptr);	
