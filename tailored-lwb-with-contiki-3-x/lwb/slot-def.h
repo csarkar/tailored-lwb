@@ -87,13 +87,7 @@
  * \brief MAX number of global data slots per second.
  *        Default value: 38
  */
-#define MAX_SLOTS_P_SECOND			52			
-
-/**
- * \brief MAX number of intra cluster data slots per second.
- *        Default value: 48
- */
-#define MAX_MINI_SLOTS_P_SECOND		52
+#define MAX_SLOTS_P_SECOND			52
 
 /**
  * \brief number of times data packets will be sent 
