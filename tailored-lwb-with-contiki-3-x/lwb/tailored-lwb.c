@@ -53,6 +53,7 @@ static flow_info_struct flow_info;
 static int8_t FLOODING_ROLE;
 static uint16_t rx_count;
 static enum err_type errno;
+static uint8_t hop_to_sink;
 /*---------------------------------------------------------------------------*/
 
 char tailored_lwb_scheduler(struct rtimer *t, void *ptr);
@@ -136,25 +137,18 @@ static inline int8_t reset_parameters() {
 	data_slots  = 0;
 	rr_slots = 0;
 	rx_count = 0;
+	SLEEP_SLOTS	= sync_data.sleep_slots;
+	if(sync_data.sleep_slots>1) {
+		t_ref_l_old = (rtimer_clock_t)(t_ref_l_old + ((SLEEP_SLOTS-1)%2)*RTIMER_SECOND);
+	}
 		
 	if(get_rx_cnt() == 0) {
-		RR_SLOTS   = 0;
-		DATA_SLOTS = 0;
-		skew_estimated--;
 		return NO_SYNC_PACKET;
 	}
 	else {
 		run_time = sync_data.run_time;
 		RR_SLOTS = sync_data.rr_slots;
-		
 		DATA_SLOTS  = sync_data.data_slots;
-			
-		SLEEP_SLOTS	= sync_data.sleep_slots;
-		if(sync_data.sleep_slots>1) {
-			t_ref_l_old = (rtimer_clock_t)(t_ref_l_old + ((SLEEP_SLOTS-1)%2)*RTIMER_SECOND);
-		} else {
-			SLEEP_SLOTS	= 1;
-		}
 		return NO_ERROR;
 	}
 }
@@ -238,17 +232,12 @@ void next_radio_activity_schedule(struct rtimer *t, void *ptr) {
 	else if(rr_slots < RR_SLOTS) {
 		NEXT_SLOT = (rtimer_clock_t)(NEXT_SLOT + RR_SLOT_LEN);
 		
-		if(rr_slots%MIN_RR_SLOTS==0) {
-			if(IS_SINK()) {
+		if(IS_SINK()) {
+			if(rr_slots%MIN_RR_SLOTS==0) {
 				GRACE_PERIOD = (-1)*TX_GUARD_TIME;
 			}
-		} else if(rr_slots%MIN_RR_SLOTS==1) {
-			if(IS_SINK()) {
-				GRACE_PERIOD = TX_GUARD_TIME;
-			}
-		} else if(rr_slots%MIN_RR_SLOTS==2) {
-			if(req_reply.dst == node_id) {
-				GRACE_PERIOD = TX_GUARD_TIME;
+			else {
+				GRACE_PERIOD = 2*TX_GUARD_TIME;
 			}
 		}
 	}
@@ -260,7 +249,6 @@ void next_radio_activity_schedule(struct rtimer *t, void *ptr) {
 	if(NEXT_SLOT >= RTIMER_SECOND) {
 		NEXT_SLOT   = (rtimer_clock_t)(NEXT_SLOT - RTIMER_SECOND);
 		REF_TIME    = (rtimer_clock_t)(REF_TIME + RTIMER_SECOND);
-		period++;
 		run_time++;
 		if(SLEEP_SLOTS > 0) {
 			SLEEP_SLOTS--;
@@ -281,12 +269,6 @@ void next_radio_activity_schedule(struct rtimer *t, void *ptr) {
 	if(SLEEP_SLOTS==0) {
 		/* print stats after the LWB round */
 		process_poll(&tailored_lwb_print_process);
-		
-		/* load own data slots, and slot it is going to participate */
-		if(run_time == STABILIZATION_PERIOD) {
-			flow_info.slot = get_own_slot();
-			load_forwarder_selection_vector();
-		}
 		
 		/* indicate there will be a sync slot */
 		SYNC_SLOT = 1;
@@ -315,105 +297,6 @@ void node_init() {
 	} else {
 		flow_info.dst  = SINK_NODE_ID;
 		flow_info.slot = 0;
-	}
-}
-
-/**
- * 
- */
-void prepare_data() {
-	
-	sensed_data.dst = 0;
-	
-	if(decide_participation(data_slots)){
-		if(flow_info.slot == data_slots) {
-			sensed_data.data_len = 0;
-			sensed_data.src 	  = node_id;
-			sensed_data.dst 	  = flow_info.dst;
-			sensed_data.data_len  = 1;
-			errno = DATA_TX_SUCC;
-			FLOODING_ROLE = GLOSSY_INITIATOR;
-		} else { 
-			FLOODING_ROLE = GLOSSY_RECEIVER;
-		}
-	}
-	else {
-		FLOODING_ROLE = GLOSSY_NO_FLOODING;
-	}
-}
-
-/**
- * 
- */
-void process_data() {
-	
-	/* if the data is not sent, set error code to TX_FAIL */
-	if(FLOODING_ROLE == GLOSSY_INITIATOR && get_rx_cnt()==0) {
-		errno = DATA_TX_FAIL;
-	}
-	
-	/* increase the number of packet received */
-	if(sensed_data.dst == node_id) {
-		rx_count++;
-	}
-	
-	/* at the end of data slots */
-	if(data_slots == DATA_SLOTS) {
-		if(IS_SINK()) {
-			errno = DATA_SLOT_END;
-		}
-		DATA_SLOTS = 0;
-	}
-}
-
-/**
- * 
- */
-void proecess_rr_data() {
-	
-	/* switch the role of INITIATOR and RECEIVER */
-	if(req_reply.dst == node_id) {
-		FLOODING_ROLE = GLOSSY_INITIATOR;
-	} else {
-		FLOODING_ROLE = GLOSSY_RECEIVER;
-		req_reply.dst = 0;
-	}
-
-	/* processing at different slots */
-	if(rr_slots%MIN_RR_SLOTS == 1) {
-		if(!get_rx_cnt()) {
-			/* if no request is received, skip the reply slot */
-			FLOODING_ROLE = GLOSSY_NO_FLOODING;
-			rr_slots = RR_SLOTS;
-		} else {
-			if(IS_SINK()) {
-				max_data_slots = handle_slot_request(&req_reply);
-			}
-		}
-	} 
-	else if(rr_slots%MIN_RR_SLOTS == 2) {
-		if(get_rx_cnt() == 0) {
-			rr_slots++;
-		} else {
-			handle_slot_reply(&req_reply, &errno);
-		}
-	}
-	else {
-#if !FORWARDER_SELECTION
-		handle_slot_reply(&req_reply, &errno);
-#endif
-		int8_t b = add_participation(req_reply.slot, req_reply.hop);
-		if(run_time > STABILIZATION_PERIOD && b==1) {
-			/* after the stabilization phase, directly update the participation 
-			 * vector and slot number */
-			update_forwarder_selection_vector(req_reply.slot);
-			flow_info.slot = req_reply.slot;
-		}
-	}
-	
-	/* at the end of rr slots */
-	if(rr_slots == RR_SLOTS) {
-		RR_SLOTS = 0;
 	}
 }
 
@@ -515,6 +398,7 @@ void process_sync_packet(struct rtimer *t, void *ptr) {
 			rtimer_set(t, REF_TIME + NEXT_SLOT, 1, (rtimer_callback_t)tailored_lwb_scheduler, ptr);
 			
 			errno = reset_parameters();
+			hop_to_sink = get_my_hop();
 			SYNC_SLOT = 0;
 			
 			if(errno == NO_SYNC_PACKET) {
@@ -523,6 +407,100 @@ void process_sync_packet(struct rtimer *t, void *ptr) {
 			
 			update_participation_vector(sync_data.slot_vector, DATA_SLOTS);
 		}
+	}
+}
+
+/**
+ * 
+ */
+void prepare_data() {
+	
+	sensed_data.dst = 0;
+	
+	if(decide_participation(data_slots)){
+		if(flow_info.slot == data_slots) {
+			sensed_data.src 	 = node_id;
+			sensed_data.dst 	 = flow_info.dst;
+			sensed_data.data_len = 1;
+			sensed_data.hop		 = hop_to_sink+1;
+			errno = DATA_TX_SUCC;
+			FLOODING_ROLE = GLOSSY_INITIATOR;
+		} else { 
+			FLOODING_ROLE = GLOSSY_RECEIVER;
+		}
+	}
+	else {
+		FLOODING_ROLE = GLOSSY_NO_FLOODING;
+	}
+}
+
+/**
+ * 
+ */
+void process_data() {
+	
+	/* if the data is not sent, set error code to TX_FAIL */
+	if(FLOODING_ROLE == GLOSSY_INITIATOR && get_rx_cnt()==0) {
+		errno = DATA_TX_FAIL;
+	} 
+	
+#if FORWARDER_SELECTION
+	if(FLOODING_ROLE == GLOSSY_RECEIVER && get_rx_cnt()) {
+		update_forwarder_selection(data_slots, sensed_data.hop, get_my_hop(), hop_to_sink);
+	} 
+#endif
+	
+	/* increase the number of packet received */
+	if(sensed_data.dst == node_id) {
+		rx_count++;
+	}
+	
+	/* at the end of data slots */
+	if(data_slots == DATA_SLOTS) {
+		if(IS_SINK()) {
+			errno = DATA_SLOT_END;
+		}
+		DATA_SLOTS = 0;
+	}
+}
+
+/**
+ * 
+ */
+void proecess_rr_data() {
+	
+	/* switch the role of INITIATOR and RECEIVER */
+	if(req_reply.dst == node_id) {
+		FLOODING_ROLE = GLOSSY_INITIATOR;
+	} else {
+		FLOODING_ROLE = GLOSSY_RECEIVER;
+		req_reply.dst = 0;
+	}
+
+	/* processing at different slots */
+	if(rr_slots%MIN_RR_SLOTS == 1) {
+		if(get_rx_cnt()) {
+			if(IS_SINK()) {
+				max_data_slots = handle_slot_request(&req_reply);
+			}
+		} else {
+			/* if no request is received, skip the reply slot */
+			FLOODING_ROLE = GLOSSY_NO_FLOODING;
+			rr_slots = RR_SLOTS;
+		}
+	} 
+	else {
+		if(get_rx_cnt()) {
+			handle_slot_reply(&req_reply);
+			if(req_reply.dst == node_id) {
+				flow_info.slot = req_reply.slot;
+			}
+		}
+	}
+	
+	/* at the end of rr slots */
+	if(rr_slots == RR_SLOTS) {
+		RR_SLOTS = 0;
 	}
 }
 
@@ -589,7 +567,7 @@ char tailored_lwb_scheduler(struct rtimer *t, void *ptr) {
 			/* even though evry node should participate in every rr slots (with specified role),
 			 * if no request is received in the first rr slot, skip the next slot */
 			if(FLOODING_ROLE != GLOSSY_NO_FLOODING) {
-				tailored_glossy_start((uint8_t *)&req_reply, REQ_LEN, FLOODING_ROLE, FLOODING, GLOSSY_SYNC, D_TX,
+				tailored_glossy_start((uint8_t *)&req_reply, REQ_LEN, FLOODING_ROLE, FLOODING, GLOSSY_NO_SYNC, D_TX,
 						APPLICATION_HEADER, (rtimer_clock_t)(RTIMER_TIME(t) + RR_SLOT_DURATION), 
 						(rtimer_callback_t)tailored_lwb_scheduler, t, ptr);
 				PT_YIELD(&pt);
@@ -623,6 +601,8 @@ PROCESS_THREAD(tailored_lwb_process, ev, data)
 	PROCESS_BEGIN();
 	
 	initiate_energy_accounting();
+	
+	set_forwarder_vector();
 	
 	leds_on(LEDS_RED);
 	// Start print stats processes.

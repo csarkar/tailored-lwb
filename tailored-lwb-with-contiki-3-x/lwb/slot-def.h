@@ -18,14 +18,14 @@
 #define MINIMUM_LWB_ROUND 			5
 
 /**
- * Initial network cooloff period, default is 10 seconds
+ * Initial network cooloff period, default is 30 seconds
  */
-#define COOLOFF_PERIOD				1*IPI
+#define COOLOFF_PERIOD				30
 
 /**
- * Initial network stabilization period, default is 20 seconds
+ * Initial network stabilization period, default is 30 seconds
  */
-#define STABILIZATION_PERIOD		COOLOFF_PERIOD+1*IPI
+#define STABILIZATION_PERIOD		COOLOFF_PERIOD+30
 
 /**
  * LWB reset period, default is 24 hours
@@ -61,33 +61,19 @@
 /**************** SYSTEM parameters, change with care *****************/
 
 /**
- * required by FS-LWB, a different value can change FS-LWB's behavior 
- * and performance
- */
-#define RSSI_THESHOLD				-75
-
-/**
- * associated with FS-LWB
- */
-#define RSSI_BUFFER					-5
-
-/**
  * \brief MAX number of req/reply slots per second.
  *        Default value: 48
  */
-#define MAX_RR_SLOTS_P_SECOND		48
+#define MAX_RR_SLOTS_P_SECOND		40
 
-#if FORWARDER_SELECTION
-#define MIN_RR_SLOTS				3
-#else 
+
 #define MIN_RR_SLOTS				2
-#endif
 
 /**
  * \brief MAX number of global data slots per second.
  *        Default value: 38
  */
-#define MAX_SLOTS_P_SECOND			52
+#define MAX_SLOTS_P_SECOND			50
 
 /**
  * \brief number of times data packets will be sent 
@@ -115,9 +101,9 @@
  * \brief Duration of each Glossy phase.
  *        Default value: 15 ms.
  */
-#define GLOSSY_DURATION      	(RTIMER_SECOND / 66)    // 15 ms
+#define GLOSSY_DURATION      	(RTIMER_SECOND / 30)    // 33.33 ms
 
-#define GLOSSY_SYNC_GUARD		(RTIMER_SECOND / 40)	// 25 ms
+#define GLOSSY_SYNC_GUARD		GLOSSY_DURATION +(RTIMER_SECOND / 100)	// 43.33 ms
 
 #define DATA_SLOT_LEN	  		(RTIMER_SECOND / 55)    // 18 ms
 
@@ -132,11 +118,7 @@
  * \brief Guard-time at receivers for the sync packet.
  *        Default value: 2000 us.
  */
-#if COOJA
-#define GLOSSY_GUARD_TIME       (RTIMER_SECOND / 333)	// 3 ms
-#else
-#define GLOSSY_GUARD_TIME       (RTIMER_SECOND / 500)   // 2 ms
-#endif /* COOJA */
+#define GLOSSY_GUARD_TIME       (RTIMER_SECOND / 100)   // 10 ms
 
 /**
  * \brief Guard-time at receivers for the rest of packets except the sync packet.

@@ -4,6 +4,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 
+#include "contiki.h"
+
 #include "tailored-glossy.h"
 #include "slot-def.h"
 
@@ -35,21 +37,6 @@ typedef struct {
 
 
 /**
- * \brief Data structure used to send slot request and reply message.
- */	
-typedef struct {
-	uint16_t src;
-	uint16_t dst;
-	uint16_t slot;
-	uint8_t  hop;
-} request_data_struct;
-
-/**
- * \brief Length of request/reply packet structure.
- */
- #define REQ_LEN                   sizeof(request_data_struct)
-
-/**
  * \brief Data structure used to send synchronization packet.
  */
 typedef struct {
@@ -57,7 +44,7 @@ typedef struct {
 	uint8_t  rr_slots;
 	uint16_t data_slots;
 	uint8_t	 slot_vector[20];
-	uint8_t  sleep_slots;
+	uint16_t sleep_slots;
 } sync_data_struct;
 
 /**
@@ -73,6 +60,7 @@ typedef struct {
 typedef struct {
 	uint16_t src;
 	uint16_t dst;
+	uint8_t  hop;
 	uint8_t  data_len;
 	uint8_t  data[MAX_PAYLOAD_LEN];
 } sensed_data_struct;
@@ -81,6 +69,21 @@ typedef struct {
  * \brief Length of data packet.
  */
 #define SDATA_LEN                   sizeof(sensed_data_struct)
+
+
+/**
+ * \brief Data structure used to send slot request and reply message.
+ */	
+typedef struct {
+	uint16_t src;
+	uint16_t dst;
+	uint16_t slot;
+} request_data_struct;
+
+/**
+ * \brief Length of request/reply packet structure.
+ */
+ #define REQ_LEN                   sizeof(request_data_struct)
 
 /*********************************************************************************************/
 

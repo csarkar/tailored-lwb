@@ -428,9 +428,10 @@ void tailored_glossy_start(uint8_t *data_, uint8_t data_len_, uint8_t initiator_
 	t_start = RTIMER_NOW_DCO();
 	// set Glossy packet length, with or without relay counter depending on the sync flag value
 	if (data_len) {
-		packet_len_tmp = (sync) ?
+		/*packet_len_tmp = (sync) ?
 				data_len + FOOTER_LEN + GLOSSY_RELAY_CNT_LEN + GLOSSY_HEADER_LEN :
-				data_len + FOOTER_LEN + GLOSSY_HEADER_LEN;
+				data_len + FOOTER_LEN + GLOSSY_HEADER_LEN;*/
+		packet_len_tmp = data_len + FOOTER_LEN + GLOSSY_RELAY_CNT_LEN + GLOSSY_HEADER_LEN;
 		packet_len = packet_len_tmp;
 		// set the packet length field to the appropriate value
 		GLOSSY_LEN_FIELD = packet_len_tmp;
@@ -713,10 +714,9 @@ inline void glossy_end_rx(void) {
 /**** Modified: Moved to interrupt handle ****/
 		header = GLOSSY_HEADER_FIELD & ~GLOSSY_HEADER_MASK;
 		// packet correctly received
-		if (sync) {
-			// increment relay_cnt field
-			GLOSSY_RELAY_CNT_FIELD++;
-		}
+		
+		// increment relay_cnt field
+		GLOSSY_RELAY_CNT_FIELD++;
 		
 		if (tx_cnt == tx_max) {
 			// no more Tx to perform: stop Glossy

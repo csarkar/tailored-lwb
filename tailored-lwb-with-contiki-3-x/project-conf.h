@@ -1,7 +1,9 @@
-
-// set COOJA to 1 for simulating Glossy in Cooja
+// always set COOJA to 1 for whether you are simulating or running it on actual nodes
 #define COOJA 1
-#define WITH_TINYOS_AUTO_IDS 0
+
+// for TinyOS-based testbeds, set this to 1, otherwise set it to 0
+#define WITH_TINYOS_AUTO_IDS 1
+
 
 #define rtimer_arch_now_dco() (TBR)
 
