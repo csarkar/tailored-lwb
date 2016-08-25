@@ -2,7 +2,7 @@
 #define COOJA 1
 
 // for TinyOS-based testbeds, set this to 1, otherwise set it to 0
-#define WITH_TINYOS_AUTO_IDS 1
+#define WITH_TINYOS_AUTO_IDS 0
 
 
 #define rtimer_arch_now_dco() (TBR)
