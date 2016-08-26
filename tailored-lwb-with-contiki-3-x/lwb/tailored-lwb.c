@@ -525,7 +525,7 @@ char tailored_lwb_scheduler(struct rtimer *t, void *ptr) {
 			rtimer_clock_t t_stop = prepare_sync_packet(t);
 			
 			/* every node participate (using flooding) in every sync slot */
-			tailored_glossy_start((uint8_t *)&sync_data, SYNC_LEN, FLOODING_ROLE, FLOODING, GLOSSY_SYNC, N_TX,
+			tailored_glossy_start((uint8_t *)&sync_data, SYNC_LEN, FLOODING_ROLE, GLOSSY_SYNC, N_TX,
 						APPLICATION_HEADER, t_stop, (rtimer_callback_t)tailored_lwb_scheduler, t, ptr);
 			PT_YIELD(&pt);
 			tailored_glossy_stop(&src, &dst);
@@ -542,7 +542,7 @@ char tailored_lwb_scheduler(struct rtimer *t, void *ptr) {
 			
 			/* selective nodes participate (using flooding) in delivering the data */
 			if(FLOODING_ROLE != GLOSSY_NO_FLOODING) {	
-				tailored_glossy_start((uint8_t *)&sensed_data, SDATA_LEN, FLOODING_ROLE, FLOODING, GLOSSY_SYNC, D_TX,
+				tailored_glossy_start((uint8_t *)&sensed_data, SDATA_LEN, FLOODING_ROLE, GLOSSY_SYNC, D_TX,
 						APPLICATION_HEADER, (rtimer_clock_t)(RTIMER_TIME(t) + DATA_SLOT_DURATION), 
 						(rtimer_callback_t)tailored_lwb_scheduler, t, ptr);
 				PT_YIELD(&pt);
@@ -567,7 +567,7 @@ char tailored_lwb_scheduler(struct rtimer *t, void *ptr) {
 			/* even though evry node should participate in every rr slots (with specified role),
 			 * if no request is received in the first rr slot, skip the next slot */
 			if(FLOODING_ROLE != GLOSSY_NO_FLOODING) {
-				tailored_glossy_start((uint8_t *)&req_reply, REQ_LEN, FLOODING_ROLE, FLOODING, GLOSSY_NO_SYNC, D_TX,
+				tailored_glossy_start((uint8_t *)&req_reply, REQ_LEN, FLOODING_ROLE, GLOSSY_NO_SYNC, D_TX,
 						APPLICATION_HEADER, (rtimer_clock_t)(RTIMER_TIME(t) + RR_SLOT_DURATION), 
 						(rtimer_callback_t)tailored_lwb_scheduler, t, ptr);
 				PT_YIELD(&pt);

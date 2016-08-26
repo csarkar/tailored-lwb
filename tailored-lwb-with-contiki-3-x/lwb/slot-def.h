@@ -73,23 +73,23 @@
  * \brief MAX number of global data slots per second.
  *        Default value: 38
  */
-#define MAX_SLOTS_P_SECOND			50
+#define MAX_SLOTS_P_SECOND			36
 
 /**
  * \brief number of times data packets will be sent 
  */
-#define D_TX 						2
+#define D_TX 						3
 
 /**
  * \brief number of times strobe will be sent 
  */
-#define S_TX 						2
+#define S_TX 						3
 
 /**
  * \brief Maximum number of times sync packets will be sent N.
  *        Default value: 5.
  */
-#define N_TX                    	3
+#define N_TX                    	5
 
 /**
  * \brief Period with which a Glossy phase is scheduled.
@@ -105,11 +105,11 @@
 
 #define GLOSSY_SYNC_GUARD		GLOSSY_DURATION +(RTIMER_SECOND / 100)	// 43.33 ms
 
-#define DATA_SLOT_LEN	  		(RTIMER_SECOND / 55)    // 18 ms
+#define DATA_SLOT_LEN	  		(RTIMER_SECOND / 40)    // 25 ms
 
 #define DATA_SLOT_DURATION 		(RTIMER_SECOND / 66)    // 15 ms
 
-#define RR_SLOT_LEN		 		(RTIMER_SECOND / 55)    // 18 ms
+#define RR_SLOT_LEN		 		(RTIMER_SECOND / 50)    // 20 ms
 
 #define RR_SLOT_DURATION 		(RTIMER_SECOND / 66)    // 15 ms
 

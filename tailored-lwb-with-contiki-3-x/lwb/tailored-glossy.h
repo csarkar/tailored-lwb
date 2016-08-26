@@ -133,9 +133,6 @@ int8_t  get_my_hop(void);
 
 signed char get_rssi(void);
 
-enum {
-	FLOODING = 1, UNICAST = 2, STROBE = 3
-};
 // *** MODIFIED:END
 
 
@@ -168,7 +165,7 @@ enum {
  * \param rtimer_    First argument of the callback function.
  * \param ptr_       Second argument of the callback function.
  */
-void tailored_glossy_start(uint8_t *data_, uint8_t data_len_, uint8_t initiator_, uint8_t tx_type,	/* added tx_type */
+void tailored_glossy_start(uint8_t *data_, uint8_t data_len_, uint8_t initiator_,
 		uint8_t sync_, uint8_t tx_max_, uint8_t header_,
 		rtimer_clock_t t_stop_, rtimer_callback_t cb_,
 		struct rtimer *rtimer_, void *ptr_);
