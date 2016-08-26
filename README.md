@@ -29,3 +29,13 @@ A big thanks to all the authors of the original works of LWB and FS-LWB.
 LWB - http://dx.doi.org/10.1145/2426656.2426658
 
 FS-LWB - http://dx.doi.org/10.1109/DCOSS.2013.73
+
+
+Few suggestions about using the code -
+
+(i) Though I have tested the old code (with contiki-2.4), it is not extensively tested on real nodes. So, better use the newer code and compile it with contiki-3.0.
+
+(ii) In the project config file, keep COOJA=1 for both cooja-based testing and real nodes.
+
+(iii) You can reduce the duty cycle of the nodes (a bit of idle listening for sync packet) by reducing the GLOSSY_DURATION and GLOSSY_SYNC_GUARD time. However, if you have nodes that has relatively high offset, then the nodes will be out of SYNC and the system breaks.
+
